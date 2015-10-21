@@ -1,26 +1,16 @@
-{-# LANGUAGE MultiParamTypeClasses, BinaryLiterals #-}
 module UnsafeSECD (
-  test060
+  test060,
+  eval,
+  Insn(..),
+  Value(..),
+  Cons(..),
+  car,cdr,caar,cadr,cdar,cddr,caadr,caddr,cdddr,cdaar,cdadr,
   ) where
        
-import Foreign.Ptr
-import Foreign.Marshal.Alloc
-import Foreign.Marshal.Array
-import Foreign.Storable
-
-import Data.Bits
-import Data.Ratio
-import Data.Word
-import Data.Int
-import Data.Maybe
 import Data.IORef
-import Control.Monad.State
 import Control.Monad
-
 import System.IO.Unsafe
 
-import qualified Test.QuickCheck as Q
-import qualified Test.QuickCheck.Monadic as QM
 --------------------------------------------------------------------------------
 -- Value, Cons
 --------------------------------------------------------------------------------
@@ -34,8 +24,10 @@ data Cons = Cons Value Value deriving Eq
 instance Show Value where
   show (Fxnum x) = show x
   show Nil = "()"
-  show (Ref p) = "#x"
+  show (Ref _) = "#x"
+  show (B b) = if b then "#t" else "#f"  
   show (I i) = show i
+  show W = "W"
 
 instance Show Cons where
   show (Cons x y) = "Cons " ++ show x ++ " " ++ show y
@@ -74,6 +66,9 @@ showValue (Ref p) = do
   putStr "("
   v <- readIORef p
   showCons1 v
+showValue (B b) = case b of
+  True -> putStr "#t"
+  False -> putStr "#f"
 showValue (I i) = putStr (show i)
 showValue W = putStr "W"
 
@@ -96,6 +91,7 @@ showCons2 x = case x of
 
 -- SECD register
 {-# NOINLINE _s #-}
+_s,_e,_c,_d :: IORef Value    
 _s = unsafePerformIO (newIORef Nil)
 {-# NOINLINE _e #-}
 _e = unsafePerformIO (newIORef Nil)
@@ -104,16 +100,19 @@ _c = unsafePerformIO (newIORef Nil)
 {-# NOINLINE _d #-}
 _d = unsafePerformIO (newIORef Nil)
 -- setter
+setS,setE,setC,setD :: Value -> IO ()
 setS = writeIORef _s
 setE = writeIORef _e
 setC = writeIORef _c
 setD = writeIORef _d
 -- getter
+getS,getE,getC,getD :: IO Value
 getS = readIORef _s
 getE = readIORef _e
 getC = readIORef _c
 getD = readIORef _d
 -- show
+showSECD :: IO ()
 showSECD = do
   s <- getS
   e <- getE
@@ -127,28 +126,19 @@ showSECD = do
   showValue c
   putStr " "
   showValue d
-
-testunsafe = do
-  c <- getC
-  c' <- cons (I NIL) Nil
-  setC c'
-  showSECD
-  putStrLn ""
-  eval
-  showSECD
-  putStrLn ""
-
+-- evaluator
+eval :: IO ()
 eval = do
   eval1
   c <- getC
   unless (c == Nil) eval
 
+eval1 :: IO ()
 eval1 = do
   s <- getS
   e <- getE
   c <- getC
   d <- getD
-  
   op <- car c
 
   case op of
@@ -299,8 +289,10 @@ eval1 = do
       setS Nil
       setE we
       setC f
-      setD d'      
+      setD d'
+    x -> error $ "expect (I Insn) but got : " ++ show x
 
+nth :: Int -> Value -> IO Value
 nth 0 p = car p
 nth i p = do
   p' <- cdr p
@@ -310,6 +302,7 @@ locate :: Value -> Value -> Value -> IO Value
 locate (Fxnum i) (Fxnum j) e = do
   e' <- nth (i - 1) e
   nth (j - 1) e'
+locate _ _ _ = error "invalid args"
 
 test022 = do
   s <- getS
@@ -328,10 +321,12 @@ test022 = do
   showSECD
   putStrLn ""
 
+list :: [Value] -> IO Value
 list (x:[]) = cons x Nil
 list (x:xs) = do
   p <- list xs
   cons x p
+list [] = return Nil
 
 -- test060 23
 test060 :: Int -> IO ()

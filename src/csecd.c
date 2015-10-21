@@ -50,12 +50,17 @@ void rplaca (intptr_t x, intptr_t v);
 intptr_t nth (intptr_t i, intptr_t p);
 
 // SECD Registers
-intptr_t s;
-intptr_t e;
-intptr_t c;
-intptr_t d;
-intptr_t fp;
-int ncons = 0;
+/* register intptr_t s asm ("r10"); */
+/* register intptr_t e asm ("r11"); */
+/* register intptr_t c asm ("r12"); */
+/* register intptr_t d asm ("r13"); */
+/* register intptr_t fp asm ("r14"); */
+obj s;
+obj e;
+obj c;
+obj d;
+obj fp;
+// int ncons = 0;
 
 void show_object (intptr_t x) {
   if ((x & fxnum_mask) == fxnum_tag) {
@@ -155,7 +160,7 @@ intptr_t cons (intptr_t x, intptr_t y) {
   
   fp = fp + 8 * (2 * 8);
   fp0 = fp0 | 0x01; // タグを付与して返却
-  ncons++;
+  //  ncons++;
   return fp0;
 }
 
@@ -195,7 +200,6 @@ void eval() {
     if (c == immediate_nil) {
       break;
     }
-    // show_secd();
     evalVM1();
   }
 }
@@ -248,7 +252,7 @@ void evalVM1() {
       intptr_t e1 = cdar (s);
       intptr_t v = cadr (s);
       intptr_t s1 = cddr (s);
-      intptr_t e0 = e; // 順番重要
+      intptr_t e0 = e;
       intptr_t c1 = cdr (c);
       intptr_t e2 = cons (v, e1);
 
@@ -268,14 +272,14 @@ void evalVM1() {
     }
   case ADD: // (a b.s) e (OP.c) d   ->   ((a OP b).s) e c d
     {
-      intptr_t x = car (s) + cadr (s); // タグは無視して足せる
+      intptr_t x = car (s) + cadr (s);
       s = cons (x, (cddr (s)));
       c = cdr (c);
       break;
     }
   case SUB: // (a b.s) e (OP.c) d   ->   ((a OP b).s) e c d
     {
-      intptr_t x = car (s) - cadr (s); // タグは無視して引ける
+      intptr_t x = car (s) - cadr (s);
       s = cons (x, (cddr (s)));
       c = cdr (c);
       break;
@@ -367,6 +371,7 @@ void rplaca (intptr_t x, intptr_t v) {
   *p = v;
 }
 
+
 void show_secd () {
   show_object (s);
   printf(" ");
@@ -376,10 +381,12 @@ void show_secd () {
   printf(" ");
   show_object (d);
   printf("\n");
-  printf("ncons %d\n", ncons);
+  //  printf("ncons %d\n", ncons);
 }
 
-
+////////////////////////////////////////////////////////////////
+// test
+////////////////////////////////////////////////////////////////
 void cons_test () {
   printf("# cons_test\n");
   // (cons 7 9)
@@ -456,9 +463,6 @@ void cons_test_4 () {
   printf("\n");
 }
 
-////////////////////////////////////////////////////////////////
-// test
-////////////////////////////////////////////////////////////////
 void insn_test() {
   intptr_t insns[] = { NIL, LD, LDC, SEL, JOIN,
 		       ATOM, LDF, CONS, AP, RTN,
@@ -552,7 +556,7 @@ void fib_test(int n) {
   show_secd(); 
 }
 
-int main () {
+int main (int argc, char *argv[]) {
   /* printf("sizeof int: %ld\n", sizeof (int)); // = 4 */
   /* printf("sizeof int*: %ld\n", sizeof (int*)); // = 8 */
   /* printf("sizeof intptr_t: %ld\n", sizeof (intptr_t)); // 8 == sizeof (int*) */
@@ -574,7 +578,8 @@ int main () {
   /* ap_test(); */
   /* gtn_test(); */
   /* sel_test(); */
-  fib_test(23);
+  int n = atoi(argv[1]);
+  fib_test(n);
 //  show_secd();
   return 0;
 }
